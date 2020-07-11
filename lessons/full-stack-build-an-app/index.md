@@ -2814,6 +2814,68 @@ To use the `TokenGenerator` code we need to add a dependency to our project:
 dotnet add package Microsoft.AspNetCore.Authentication.JwtBearer
 ```
 
+Then create a `TokenGenerator` class using this code:
+
+```csharp
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using _09_Suncoast_Overflow.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+
+namespace TacoTuesday.Controllers
+{
+
+    [Route("api/[controller]")]
+    [ApiController]
+    public class SessionsController : ControllerBase
+    {
+        private readonly DatabaseContext _context;
+        readonly protected string JWT_KEY;
+
+        public SessionsController(DatabaseContext context, IConfiguration config)
+        {
+            _context = context;
+            JWT_KEY = config["JWT_KEY"];
+        }
+
+        public class LoginUser
+        {
+            public string Email { get; set; }
+            public string Password { get; set; }
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> Login(LoginUser loginUser)
+        {
+            var foundUser = await _context.Users.FirstOrDefaultAsync(user => user.Email == loginUser.Email);
+
+            if (foundUser != null && foundUser.IsValidPassword(loginUser.Password))
+            {
+                var response = new
+                {
+                    token = new TokenGenerator(JWT_KEY).TokenFor(foundUser),
+                    user = foundUser
+                };
+
+                return Ok(response);
+            }
+            else
+            {
+                var response = new
+                {
+                    status = 400,
+                    errors = new List<string>() { $"User does not exist" }
+                };
+
+                return BadRequest(response);
+            }
+        }
+    }
+}
+```
+
 We also include the `user` object in the response. This is so the client has a
 simple way to access this data.
 
